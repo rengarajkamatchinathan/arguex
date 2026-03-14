@@ -3,19 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Search,
   MessageSquare,
   Users,
   TrendingUp,
   Trophy,
   Flame,
-  Filter,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { topDebaters, trendingTopics } from "@/lib/mock-data";
-import { CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getReputationLevel } from "@/lib/constants";
 
@@ -68,13 +64,10 @@ function DebateCard({ debate }: { debate: Debate }) {
       <div className="p-5 rounded-2xl border border-border/60 bg-card hover:border-indigo-500/40 transition-all cursor-pointer group">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge className="text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20">
-                {debate.category}
-              </Badge>
-              {debate.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {(debate.tags.length > 0 ? debate.tags : [debate.category]).slice(0, 4).map((tag) => (
+                <Badge key={tag} className="text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20">
+                  #{tag}
                 </Badge>
               ))}
             </div>
@@ -141,112 +134,26 @@ function DebateCardSkeleton() {
 }
 
 export default function FeedPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchQuery, setSearchQuery] = useState("");
   const [debates, setDebates] = useState<Debate[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDebates = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (selectedCategory !== "All") params.set("category", selectedCategory);
-        if (searchQuery) params.set("search", searchQuery);
-        const res = await fetch(`/api/debates?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDebates(data.debates ?? []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch debates", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const timer = setTimeout(fetchDebates, searchQuery ? 300 : 0);
-    return () => clearTimeout(timer);
-  }, [selectedCategory, searchQuery]);
+    setLoading(true);
+    fetch("/api/debates")
+      .then((r) => r.json())
+      .then((d) => setDebates(d.debates ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* Top search bar (visible on larger screens within content) */}
-      <div className="flex items-center gap-3 mb-6 lg:hidden">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search debates..."
-            className="pl-9 bg-muted/50 border-border/60 rounded-xl"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
       <div className="flex gap-6">
-        {/* Left Sidebar — Categories */}
-        <aside className="hidden md:block w-48 lg:w-52 shrink-0">
-          <div className="sticky top-6 space-y-1">
-            <div className="flex items-center gap-2 px-3 py-2 mb-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Categories
-              </span>
-            </div>
-            {["All", ...CATEGORIES].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-all",
-                  selectedCategory === cat
-                    ? "bg-indigo-500/10 text-indigo-400"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </aside>
-
         {/* Center Feed */}
         <div className="flex-1 min-w-0">
-          {/* Desktop search */}
-          <div className="hidden lg:flex items-center gap-3 mb-6">
-            <div className="relative flex-1 max-w-lg">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search debates..."
-                className="pl-9 bg-muted/50 border-border/60 rounded-xl"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Mobile category pills */}
-          <div className="md:hidden flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-            {["All", ...CATEGORIES].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                  selectedCategory === cat
-                    ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
-                    : "text-muted-foreground border-border/60 hover:text-foreground"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-bold">
-              {selectedCategory === "All" ? "All Debates" : selectedCategory}
+              All Debates
               {!loading && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   {debates.length} debates
@@ -265,7 +172,7 @@ export default function FeedPage() {
             <div className="text-center py-16 text-muted-foreground">
               <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p className="font-medium">No debates found</p>
-              <p className="text-sm mt-1">Try a different search or category</p>
+              <p className="text-sm mt-1">Try a different search</p>
             </div>
           ) : (
             <div className="space-y-4">

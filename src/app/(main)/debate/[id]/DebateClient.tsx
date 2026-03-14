@@ -500,13 +500,10 @@ export default function DebateClient({
       <div className="p-6 rounded-2xl border border-border/60 bg-card mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1">
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
-                {debate.category}
-              </Badge>
-              {debate.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {(debate.tags.length > 0 ? debate.tags : [debate.category]).map((tag) => (
+                <Badge key={tag} className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-xs">
+                  #{tag}
                 </Badge>
               ))}
             </div>
