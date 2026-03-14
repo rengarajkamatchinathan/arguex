@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { ArgueXLogo } from "@/components/arguex-logo";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
-  Flame,
   Home,
   Compass,
   PlusSquare,
@@ -26,10 +26,8 @@ function SidebarNav() {
   const pathname = usePathname();
   return (
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-60 border-r border-border/40 bg-background/95 backdrop-blur z-40 px-4 py-6">
-      <Link href="/feed" className="flex items-center gap-2 mb-10 px-2">
-        <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-          <Flame className="w-4 h-4 text-white" />
-        </div>
+      <Link href="/feed" className="flex items-center gap-2.5 mb-10 px-2">
+        <ArgueXLogo size={32} />
         <span className="text-xl font-black bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           ArgueX
         </span>
@@ -74,9 +72,7 @@ function TopBar() {
   return (
     <header className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 border-b border-border/40 bg-background/95 backdrop-blur flex items-center justify-between px-4">
       <Link href="/feed" className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-          <Flame className="w-3.5 h-3.5 text-white" />
-        </div>
+        <ArgueXLogo size={28} />
         <span className="text-lg font-black bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           ArgueX
         </span>

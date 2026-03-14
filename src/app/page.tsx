@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Flame, MessageSquare, Trophy, Users, Zap, Shield } from "lucide-react";
+import { ArrowRight, MessageSquare, Trophy, Users, Zap, Shield } from "lucide-react";
+import { ArgueXLogo } from "@/components/arguex-logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockDebates } from "@/lib/mock-data";
@@ -35,10 +36,8 @@ export default async function HomePage() {
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <Flame className="w-4 h-4 text-white" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <ArgueXLogo size={32} />
             <span className="text-xl font-bold bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
               ArgueX
             </span>
@@ -235,9 +234,7 @@ export default async function HomePage() {
       <footer className="border-t border-border/40 py-8 px-4">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <Flame className="w-3 h-3 text-white" />
-            </div>
+            <ArgueXLogo size={20} />
             <span className="font-bold text-sm">ArgueX</span>
           </div>
           <p className="text-xs text-muted-foreground">
