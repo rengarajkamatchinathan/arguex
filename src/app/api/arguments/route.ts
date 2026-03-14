@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { arguments_, debates } from "@/lib/db/schema";
+import { arguments_, debates, notifications } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
@@ -46,6 +46,25 @@ export async function POST(req: NextRequest) {
     await db.update(debates)
       .set({ argCount: sql`${debates.argCount} + 1` })
       .where(eq(debates.id, debateId));
+
+    // If this is a reply, notify the parent argument's author
+    if (parentId) {
+      const parentRows = await db
+        .select()
+        .from(arguments_)
+        .where(eq(arguments_.id, parentId))
+        .limit(1);
+      const parent = parentRows[0];
+      if (parent && parent.authorId !== dbUser.id) {
+        await db.insert(notifications).values({
+          id: nanoid(),
+          userId: parent.authorId,
+          type: "REPLY",
+          message: `@${dbUser.username} replied to your argument`,
+          read: false,
+        });
+      }
+    }
 
     return NextResponse.json({
       id,

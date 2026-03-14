@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   ThumbsUp,
@@ -12,8 +12,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { mockNotifications } from "@/lib/mock-data";
 import { cn, timeAgo } from "@/lib/utils";
+
+interface Notification {
+  id: string;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
 
 const notificationIcons: Record<string, React.ReactNode> = {
   VOTE: <ThumbsUp className="w-4 h-4 text-green-400" />,
@@ -32,19 +39,38 @@ const notificationColors: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((data) => setNotifications(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    await fetch("/api/notifications", { method: "PATCH" });
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const markRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-3 animate-pulse">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-16 rounded-2xl bg-muted" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -76,7 +102,7 @@ export default function NotificationsPage() {
           <Bell className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="font-medium">No notifications yet</p>
           <p className="text-sm mt-1">
-            We&apos;ll notify you when something happens
+            We&apos;ll notify you when someone votes or replies to your arguments
           </p>
         </div>
       ) : (
@@ -113,7 +139,7 @@ export default function NotificationsPage() {
                   {notif.message}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {timeAgo(notif.createdAt)}
+                  {timeAgo(new Date(notif.createdAt))}
                 </p>
               </div>
 

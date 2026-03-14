@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -12,6 +12,8 @@ import {
   Plus,
   ArrowLeft,
   Share2,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -87,52 +89,95 @@ interface ArgumentType {
 }
 
 function VoteButtons({
+  argumentId,
   upvotes,
   downvotes,
   evidenceCount,
 }: {
+  argumentId: string;
   upvotes: number;
   downvotes: number;
   evidenceCount: number;
 }) {
-  const [voted, setVoted] = useState<"up" | "down" | "evidence" | null>(null);
+  const [voted, setVoted] = useState<"UP" | "DOWN" | "EVIDENCE" | null>(null);
+  const [counts, setCounts] = useState({ upvotes, downvotes, evidenceCount });
+  const [pending, setPending] = useState(false);
+
+  async function handleVote(type: "UP" | "DOWN" | "EVIDENCE") {
+    if (pending) return;
+    setPending(true);
+    const isToggleOff = voted === type;
+    // Optimistic update
+    setVoted(isToggleOff ? null : type);
+    setCounts((prev) => {
+      const delta = isToggleOff ? -1 : 1;
+      if (type === "UP") return { ...prev, upvotes: prev.upvotes + delta };
+      if (type === "DOWN") return { ...prev, downvotes: prev.downvotes + delta };
+      return { ...prev, evidenceCount: prev.evidenceCount + delta };
+    });
+    try {
+      const res = await fetch("/api/votes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ argumentId, voteType: type }),
+      });
+      if (!res.ok) {
+        // Revert on error
+        setVoted(isToggleOff ? type : null);
+        setCounts((prev) => {
+          const delta = isToggleOff ? 1 : -1;
+          if (type === "UP") return { ...prev, upvotes: prev.upvotes + delta };
+          if (type === "DOWN") return { ...prev, downvotes: prev.downvotes + delta };
+          return { ...prev, evidenceCount: prev.evidenceCount + delta };
+        });
+      }
+    } catch {
+      setVoted(isToggleOff ? type : null);
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="flex items-center gap-2 mt-3">
       <button
-        onClick={() => setVoted(voted === "up" ? null : "up")}
+        onClick={() => handleVote("UP")}
+        disabled={pending}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-          voted === "up"
+          voted === "UP"
             ? "bg-green-500/10 text-green-400 border-green-500/30"
             : "text-muted-foreground border-border/60 hover:text-green-400 hover:border-green-500/30"
         )}
       >
         <ThumbsUp className="w-3.5 h-3.5" />
-        Strong · {upvotes + (voted === "up" ? 1 : 0)}
+        Strong · {counts.upvotes}
       </button>
       <button
-        onClick={() => setVoted(voted === "down" ? null : "down")}
+        onClick={() => handleVote("DOWN")}
+        disabled={pending}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-          voted === "down"
+          voted === "DOWN"
             ? "bg-red-500/10 text-red-400 border-red-500/30"
             : "text-muted-foreground border-border/60 hover:text-red-400 hover:border-red-500/30"
         )}
       >
         <ThumbsDown className="w-3.5 h-3.5" />
-        Weak · {downvotes + (voted === "down" ? 1 : 0)}
+        Weak · {counts.downvotes}
       </button>
       <button
-        onClick={() => setVoted(voted === "evidence" ? null : "evidence")}
+        onClick={() => handleVote("EVIDENCE")}
+        disabled={pending}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-          voted === "evidence"
+          voted === "EVIDENCE"
             ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
             : "text-muted-foreground border-border/60 hover:text-amber-400 hover:border-amber-500/30"
         )}
       >
         <BookOpen className="w-3.5 h-3.5" />
-        Evidence · {evidenceCount + (voted === "evidence" ? 1 : 0)}
+        Evidence · {counts.evidenceCount}
       </button>
     </div>
   );
@@ -179,6 +224,7 @@ function ReplyCard({ arg }: { arg: ReplyType }) {
       </div>
       <p className="text-sm text-foreground/90 leading-relaxed">{arg.content}</p>
       <VoteButtons
+        argumentId={arg.id}
         upvotes={arg.upvotes}
         downvotes={arg.downvotes}
         evidenceCount={arg.evidenceCount}
@@ -187,12 +233,54 @@ function ReplyCard({ arg }: { arg: ReplyType }) {
   );
 }
 
-function ArgumentCard({ arg }: { arg: ArgumentType }) {
+function ArgumentCard({
+  arg,
+  debateId,
+  onReplyPosted,
+}: {
+  arg: ArgumentType;
+  debateId: string;
+  onReplyPosted: (reply: ArgumentType) => void;
+}) {
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
   const isPro = arg.side === "PRO";
   const replies = arg.replies ?? [];
+
+  async function handlePostReply() {
+    if (replyText.trim().length < 3) return;
+    setIsSubmitting(true);
+    setReplyError(null);
+    try {
+      const res = await fetch("/api/arguments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          debateId,
+          content: replyText.trim(),
+          side: arg.side === "PRO" ? "CON" : "PRO",
+          parentId: arg.id,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setReplyError(err.error ?? "Failed to post reply");
+        return;
+      }
+      const newReply = await res.json();
+      onReplyPosted({ ...newReply, replies: [] });
+      setReplyText("");
+      setShowReplyBox(false);
+      setShowReplies(true);
+    } catch {
+      setReplyError("Network error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div
@@ -239,6 +327,7 @@ function ArgumentCard({ arg }: { arg: ArgumentType }) {
       <p className="text-sm leading-relaxed text-foreground/90 mb-2">{arg.content}</p>
 
       <VoteButtons
+        argumentId={arg.id}
         upvotes={arg.upvotes}
         downvotes={arg.downvotes}
         evidenceCount={arg.evidenceCount}
@@ -276,8 +365,14 @@ function ArgumentCard({ arg }: { arg: ArgumentType }) {
             <Button variant="ghost" size="sm" onClick={() => setShowReplyBox(false)}>
               Cancel
             </Button>
-            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white">
-              Post Reply
+            {replyError && <p className="text-xs text-red-400">{replyError}</p>}
+            <Button
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              onClick={handlePostReply}
+              disabled={isSubmitting || replyText.trim().length < 3}
+            >
+              {isSubmitting ? "Posting..." : "Post Reply"}
             </Button>
           </div>
         </div>
@@ -307,6 +402,30 @@ export default function DebateClient({
   const [allArguments, setAllArguments] = useState<ArgumentType[]>(initialArguments);
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/follows?debateId=${debate.id}`)
+      .then((r) => r.json())
+      .then((d) => setFollowing(d.following ?? false))
+      .catch(() => {});
+  }, [debate.id]);
+
+  async function handleToggleFollow() {
+    setFollowPending(true);
+    try {
+      const res = await fetch("/api/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ debateId: debate.id }),
+      });
+      const data = await res.json();
+      setFollowing(data.following);
+    } finally {
+      setFollowPending(false);
+    }
+  }
 
   async function handleSubmitArgument() {
     if (argContent.trim().length < 10) return;
@@ -341,6 +460,10 @@ export default function DebateClient({
     });
   }
 
+  function handleReplyPosted(reply: ArgumentType) {
+    setAllArguments((prev) => [...prev, reply]);
+  }
+
   // Build nested structure: top-level args with their replies attached
   const topLevel = allArguments.filter((a) => !a.parentId);
   const replies = allArguments.filter((a) => a.parentId);
@@ -352,8 +475,14 @@ export default function DebateClient({
   const proArgs = argsWithReplies.filter((a) => a.side === "PRO");
   const conArgs = argsWithReplies.filter((a) => a.side === "CON");
 
-  const total = debate.proVotes + debate.conVotes;
-  const proPercent = total > 0 ? Math.round((debate.proVotes / total) * 100) : 50;
+  const proVoteSum = allArguments
+    .filter((a) => a.side === "PRO")
+    .reduce((acc, a) => acc + a.upvotes, 0);
+  const conVoteSum = allArguments
+    .filter((a) => a.side === "CON")
+    .reduce((acc, a) => acc + a.upvotes, 0);
+  const total = proVoteSum + conVoteSum;
+  const proPercent = total > 0 ? Math.round((proVoteSum / total) * 100) : 50;
   const conPercent = 100 - proPercent;
 
   return (
@@ -388,9 +517,28 @@ export default function DebateClient({
               {debate.description}
             </p>
           </div>
-          <Button variant="ghost" size="icon" className="shrink-0">
-            <Share2 className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant={following ? "secondary" : "outline"}
+              size="sm"
+              className={cn(
+                "gap-1.5 rounded-xl transition-all",
+                following && "text-indigo-400 border-indigo-500/40"
+              )}
+              onClick={handleToggleFollow}
+              disabled={followPending}
+            >
+              {following ? (
+                <BookmarkCheck className="w-4 h-4" />
+              ) : (
+                <Bookmark className="w-4 h-4" />
+              )}
+              {following ? "Following" : "Follow"}
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Share2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -428,8 +576,8 @@ export default function DebateClient({
             </div>
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{debate.proVotes} pro votes</span>
-            <span>{debate.conVotes} con votes</span>
+            <span>{proVoteSum} pro votes</span>
+            <span>{conVoteSum} con votes</span>
           </div>
         </div>
       </div>
@@ -462,7 +610,7 @@ export default function DebateClient({
                 No PRO arguments yet. Be the first!
               </div>
             ) : (
-              proArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} />)
+              proArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} debateId={debate.id} onReplyPosted={handleReplyPosted} />)
             )}
           </div>
         </div>
@@ -481,7 +629,7 @@ export default function DebateClient({
                 No CON arguments yet. Be the first!
               </div>
             ) : (
-              conArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} />)
+              conArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} debateId={debate.id} onReplyPosted={handleReplyPosted} />)
             )}
           </div>
         </div>
@@ -504,7 +652,7 @@ export default function DebateClient({
                 No PRO arguments yet.
               </div>
             ) : (
-              proArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} />)
+              proArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} debateId={debate.id} onReplyPosted={handleReplyPosted} />)
             )}
           </TabsContent>
           <TabsContent value="con" className="space-y-4">
@@ -513,7 +661,7 @@ export default function DebateClient({
                 No CON arguments yet.
               </div>
             ) : (
-              conArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} />)
+              conArgs.map((arg) => <ArgumentCard key={arg.id} arg={arg} debateId={debate.id} onReplyPosted={handleReplyPosted} />)
             )}
           </TabsContent>
         </Tabs>
