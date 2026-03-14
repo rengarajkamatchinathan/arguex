@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes --force)",
+      "Bash(npx create-next-app@latest /tmp/arguex-temp --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -y)",
+      "Bash(npx shadcn@latest add button card badge avatar dialog dropdown-menu tabs tooltip textarea input label separator sheet --yes)",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/\\\\\\(auth\\\\\\)/sign-in/[[...sign-in]]\")",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/\\\\\\(auth\\\\\\)/sign-up/[[...sign-up]]\")",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/\\\\\\(main\\\\\\)/debate/\\\\[id\\\\]\")",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/\\\\\\(main\\\\\\)/profile/\\\\[username\\\\]\")",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/api/debates/\\\\[id\\\\]\")",
+      "Bash(mkdir -p \"C:/Users/RengarajKamatchinath/OneDrive - Synergech Technology Solutions/Desktop/Local Disk D/Personal/Proj/arguex/src/app/api/users/\\\\[username\\\\]\")",
+      "Bash(npm run:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_t10bakdrVgWD@ep-solitary-hill-akkj70hg-pooler.c-3.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx drizzle-kit push --config=drizzle.config.ts 2)",
+      "Bash(1:*)"
+    ]
+  }
+}
