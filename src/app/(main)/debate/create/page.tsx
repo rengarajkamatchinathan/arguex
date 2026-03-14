@@ -2,25 +2,26 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, X, Eye, Hash } from "lucide-react";
+import { ArrowLeft, X, Hash } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 export default function CreateDebatePage() {
   const router = useRouter();
+  const { user } = useUser();
   const [title, setTitle] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashInput, setHashInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [step, setStep] = useState<"title" | "details">("title");
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  const username = user?.username ?? user?.firstName ?? "you";
 
   useEffect(() => {
     fetch("/api/categories")
@@ -29,13 +30,16 @@ export default function CreateDebatePage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (step === "title") titleRef.current?.focus();
+    if (step === "details") inputRef.current?.focus();
+  }, [step]);
+
   const filteredSuggestions = hashInput.trim()
     ? suggestions.filter(
-        (s) =>
-          s.toLowerCase().includes(hashInput.toLowerCase()) &&
-          !hashtags.includes(s)
+        (s) => s.toLowerCase().includes(hashInput.toLowerCase()) && !hashtags.includes(s)
       )
-    : suggestions.filter((s) => !hashtags.includes(s));
+    : suggestions.filter((s) => !hashtags.includes(s)).slice(0, 8);
 
   function addHashtag(value: string) {
     const tag = value.trim().toLowerCase().replace(/\s+/g, "-").replace(/^#+/, "");
@@ -61,7 +65,7 @@ export default function CreateDebatePage() {
   }
 
   const handleSubmit = async () => {
-    if (!title.trim() || hashtags.length === 0 || !description.trim()) return;
+    if (!isValid || isSubmitting) return;
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/debates", {
@@ -76,192 +80,178 @@ export default function CreateDebatePage() {
       });
       if (res.ok) router.push("/feed");
     } catch {
-      // silent
+      //
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isValid =
-    title.trim().length >= 10 &&
-    hashtags.length > 0 &&
-    description.trim().length >= 20;
+  const titleValid = title.trim().length >= 10;
+  const isValid = titleValid && hashtags.length > 0 && description.trim().length >= 20;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/feed" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-xl font-bold">Create a Debate</h1>
-        <button
-          onClick={() => setShowPreview(!showPreview)}
-          className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+    <div className="max-w-150 mx-auto min-h-screen flex flex-col">
+      {/* Top bar — like Twitter compose */}
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 h-13.25 border-b border-white/5 bg-background/90 backdrop-blur-md">
+        <Link
+          href="/feed"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors text-white/60 hover:text-white"
         >
-          <Eye className="w-4 h-4" />
-          {showPreview ? "Hide" : "Preview"}
+          <ArrowLeft className="w-4 h-4" />
+        </Link>
+
+        <span className="text-[15px] font-bold text-white">New Debate</span>
+
+        <button
+          onClick={step === "title" ? () => { if (titleValid) setStep("details"); } : handleSubmit}
+          disabled={step === "title" ? !titleValid : !isValid || isSubmitting}
+          className={cn(
+            "px-4 py-1.5 rounded-full text-[13px] font-bold transition-all",
+            (step === "title" ? titleValid : isValid && !isSubmitting)
+              ? "bg-indigo-500 hover:bg-indigo-400 text-white"
+              : "bg-white/10 text-white/30 cursor-not-allowed"
+          )}
+        >
+          {step === "title" ? "Next" : isSubmitting ? "Posting..." : "Post"}
         </button>
       </div>
 
-      <div className={cn("grid gap-6", showPreview ? "lg:grid-cols-2" : "max-w-2xl")}>
-        {/* Form */}
-        <div className="space-y-5">
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm font-medium">
-              Debate Title <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="title"
-              placeholder="Should AI be regulated like nuclear technology?"
-              className="bg-muted/30 border-border/60 rounded-xl h-12"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={200}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Phrase as a clear yes/no question</span>
-              <span>{title.length}/200</span>
-            </div>
-          </div>
-
-          {/* Hashtags */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">
-                Hashtags <span className="text-destructive">*</span>
-              </Label>
-              <span className="text-xs text-muted-foreground">{hashtags.length}/10</span>
-            </div>
-
-            {/* Tag input box */}
-            <div
-              className="min-h-11 flex flex-wrap gap-1.5 items-center px-3 py-2 rounded-xl border border-border/60 bg-muted/30 cursor-text focus-within:border-indigo-500/50 transition-colors"
-              onClick={() => inputRef.current?.focus()}
-            >
-              {hashtags.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-medium"
-                >
-                  #{tag}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeHashtag(tag); }}
-                    className="hover:text-red-400 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              {hashtags.length < 10 && (
-                <input
-                  ref={inputRef}
-                  value={hashInput}
-                  onChange={(e) => setHashInput(e.target.value.replace(/^#+/, ""))}
-                  onKeyDown={handleKeyDown}
-                  placeholder={hashtags.length === 0 ? "#technology, #ai, #startup..." : ""}
-                  className="flex-1 min-w-24 bg-transparent outline-none text-sm placeholder:text-muted-foreground/50"
-                />
+      {/* Compose area */}
+      <div className="flex-1 px-4 pt-4">
+        {step === "title" ? (
+          /* Step 1: Write the debate question */
+          <div className="flex gap-3">
+            <Avatar className="w-10 h-10 shrink-0 mt-0.5">
+              <AvatarFallback className="text-sm font-semibold bg-indigo-500/20 text-indigo-300">
+                {username[0]?.toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 pt-1">
+              <textarea
+                ref={titleRef}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="What's the debate? Ask a clear yes/no question..."
+                maxLength={200}
+                rows={4}
+                className="w-full bg-transparent text-[18px] font-medium text-white placeholder:text-white/25 outline-none resize-none leading-relaxed"
+              />
+              {title.length > 0 && (
+                <p className="text-[12px] text-white/30 mt-1">
+                  {200 - title.length} characters left
+                </p>
               )}
-            </div>
 
-            {/* Suggestions */}
-            {filteredSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {filteredSuggestions.slice(0, 12).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => addHashtag(s)}
-                    className="px-2.5 py-1 rounded-full text-xs border border-border/60 text-muted-foreground hover:text-indigo-400 hover:border-indigo-500/30 transition-all"
-                  >
-                    #{s}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {hashInput.trim() && !suggestions.some(
-              (s) => s.toLowerCase() === hashInput.trim().toLowerCase()
-            ) && (
-              <p className="text-xs text-indigo-400 flex items-center gap-1">
-                <Hash className="w-3 h-3" />
-                Press Enter to create &quot;#{hashInput.trim()}&quot;
-              </p>
-            )}
-
-            <p className="text-xs text-muted-foreground">
-              Press Enter, comma, or space to add. First hashtag becomes the primary category.
-            </p>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="Provide context, background, and the key points of contention. What makes this debate interesting?"
-              className="bg-muted/30 border-border/60 rounded-xl resize-none min-h-36"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={1000}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Minimum 20 characters</span>
-              <span>{description.length}/1000</span>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <div className="flex gap-3 pt-2">
-            <Link href="/feed" className="flex-1">
-              <Button variant="outline" className="w-full rounded-xl">Cancel</Button>
-            </Link>
-            <Button
-              onClick={handleSubmit}
-              disabled={!isValid || isSubmitting}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl"
-            >
-              {isSubmitting ? "Creating..." : "Create Debate"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Live Preview */}
-        {showPreview && (
-          <div className="lg:sticky lg:top-6 lg:self-start">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Preview
-            </p>
-            <div className="p-5 rounded-2xl border border-border/60 bg-card">
-              {hashtags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {hashtags.map((tag) => (
-                    <Badge key={tag} className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-xs">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <h3 className="font-bold text-lg leading-snug mb-3">
-                {title || (
-                  <span className="text-muted-foreground italic">Your debate title will appear here...</span>
-                )}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                {description || <span className="italic">Your description will appear here...</span>}
-              </p>
-              <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                <p className="text-xs text-muted-foreground text-center">
-                  Community opinion bar will appear after votes
+              {/* Hint */}
+              <div className="mt-6 p-3 rounded-xl bg-white/3 border border-white/5">
+                <p className="text-[12px] text-white/40 leading-relaxed">
+                  💡 Best debates are clear yes/no questions —{" "}
+                  <span className="text-white/60 italic">&quot;Should AI replace doctors?&quot;</span>
                 </p>
               </div>
             </div>
           </div>
+        ) : (
+          /* Step 2: Add details + hashtags */
+          <div className="flex gap-3">
+            <Avatar className="w-10 h-10 shrink-0 mt-0.5">
+              <AvatarFallback className="text-sm font-semibold bg-indigo-500/20 text-indigo-300">
+                {username[0]?.toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 pt-1 space-y-4">
+
+              {/* Show title as a "quoted tweet" preview */}
+              <div className="px-3 py-2.5 rounded-xl border border-white/8 bg-white/3">
+                <p className="text-[14px] font-semibold text-white leading-snug">{title}</p>
+              </div>
+
+              {/* Description */}
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add context... what makes this debate interesting?"
+                maxLength={1000}
+                rows={3}
+                className="w-full bg-transparent text-[15px] text-white/80 placeholder:text-white/25 outline-none resize-none leading-relaxed"
+              />
+
+              {/* Hashtag input */}
+              <div>
+                <div
+                  className="flex flex-wrap gap-1.5 items-center min-h-10 px-3 py-2 rounded-xl border border-white/8 bg-white/3 focus-within:border-indigo-500/40 cursor-text transition-colors"
+                  onClick={() => inputRef.current?.focus()}
+                >
+                  <Hash className="w-3.5 h-3.5 text-white/30 shrink-0" />
+                  {hashtags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 text-[12px] font-medium"
+                    >
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeHashtag(tag); }}
+                        className="hover:text-red-400 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {hashtags.length < 10 && (
+                    <input
+                      ref={inputRef}
+                      value={hashInput}
+                      onChange={(e) => setHashInput(e.target.value.replace(/^#+/, ""))}
+                      onKeyDown={handleKeyDown}
+                      placeholder={hashtags.length === 0 ? "Add topics..." : ""}
+                      className="flex-1 min-w-20 bg-transparent outline-none text-[14px] text-white placeholder:text-white/25"
+                    />
+                  )}
+                </div>
+
+                {/* Suggestions */}
+                {filteredSuggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {filteredSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => addHashtag(s)}
+                        className="px-2.5 py-1 rounded-full text-[11px] border border-white/8 text-white/40 hover:text-indigo-400 hover:border-indigo-500/30 transition-all"
+                      >
+                        #{s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {hashInput.trim() && (
+                  <p className="text-[11px] text-indigo-400 mt-1.5 flex items-center gap-1">
+                    <Hash className="w-3 h-3" />
+                    Press Enter to add &quot;#{hashInput.trim()}&quot;
+                  </p>
+                )}
+              </div>
+
+              {/* Validation hints */}
+              <div className="flex items-center gap-4 text-[11px] text-white/25 pb-4">
+                <span className={cn(description.length >= 20 && "text-green-400/60")}>
+                  {description.length}/1000
+                </span>
+                <span className={cn(hashtags.length > 0 && "text-green-400/60")}>
+                  {hashtags.length}/10 tags
+                </span>
+              </div>
+            </div>
+          </div>
         )}
+      </div>
+
+      {/* Step indicator */}
+      <div className="flex items-center justify-center gap-1.5 py-4">
+        <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", step === "title" ? "bg-indigo-400" : "bg-white/20")} />
+        <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", step === "details" ? "bg-indigo-400" : "bg-white/20")} />
       </div>
     </div>
   );

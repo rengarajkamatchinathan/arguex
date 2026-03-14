@@ -1,8 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users, debates, arguments_ } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ username: string }> }
+) {
+  const { username } = await params;
+  if (username !== "me") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const dbUser = await getOrCreateUser();
+  if (!dbUser) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const updates: { bio?: string; avatarUrl?: string; username?: string } = {};
+  if (typeof body.bio === "string") updates.bio = body.bio.trim();
+  if (typeof body.avatarUrl === "string") updates.avatarUrl = body.avatarUrl.trim() || null as unknown as string;
+  if (typeof body.username === "string") {
+    const newUsername = body.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (newUsername.length < 3) {
+      return NextResponse.json({ error: "Username must be at least 3 characters" }, { status: 400 });
+    }
+    // Check uniqueness
+    const existing = await db.select({ id: users.id }).from(users)
+      .where(and(eq(users.username, newUsername), ne(users.id, dbUser.id))).limit(1);
+    if (existing.length > 0) {
+      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+    }
+    updates.username = newUsername;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set(updates)
+    .where(eq(users.id, dbUser.id))
+    .returning();
+
+  return NextResponse.json(updated);
+}
 
 export async function GET(
   _req: NextRequest,
