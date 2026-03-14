@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArgueXLogo } from "@/components/arguex-logo";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import {
   Home,
   Compass,
@@ -24,6 +24,9 @@ const navItems = [
 
 function SidebarNav() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const username = user?.username ?? user?.firstName ?? "";
+
   return (
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-60 border-r border-border/40 bg-background/95 backdrop-blur z-40 px-4 py-6">
       <Link href="/feed" className="flex items-center gap-2.5 mb-10 px-2">
@@ -54,14 +57,12 @@ function SidebarNav() {
         })}
       </nav>
 
-      <div className="flex items-center justify-between pt-4 border-t border-border/40">
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "w-8 h-8",
-            },
-          }}
-        />
+      <div className="flex items-center gap-3 pt-4 border-t border-border/40">
+        <UserButton appearance={{ elements: { avatarBox: "w-9 h-9" } }} />
+        <Link href="/profile/me" className="flex-1 min-w-0 group">
+          <p className="text-sm font-semibold truncate group-hover:text-indigo-400 transition-colors">@{username}</p>
+          <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
+        </Link>
         <ThemeToggle />
       </div>
     </aside>
@@ -69,6 +70,9 @@ function SidebarNav() {
 }
 
 function TopBar() {
+  const { user } = useUser();
+  const username = user?.username ?? user?.firstName ?? "";
+
   return (
     <header className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 border-b border-border/40 bg-background/95 backdrop-blur flex items-center justify-between px-4">
       <Link href="/feed" className="flex items-center gap-2">
@@ -77,13 +81,14 @@ function TopBar() {
           ArgueX
         </span>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <ThemeToggle />
-        <UserButton
-          appearance={{
-            elements: { avatarBox: "w-7 h-7" },
-          }}
-        />
+        <div className="flex items-center gap-2">
+          {username && (
+            <span className="text-sm font-semibold text-foreground">@{username}</span>
+          )}
+          <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
+        </div>
       </div>
     </header>
   );

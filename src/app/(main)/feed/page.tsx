@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { topDebaters, trendingTopics } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { getReputationLevel } from "@/lib/constants";
 
@@ -133,9 +132,19 @@ function DebateCardSkeleton() {
   );
 }
 
+interface TrendingTopic { tag: string; count: number; }
+interface TopDebater { id: string; username: string; reputationScore: number; avatarUrl: string | null; }
+
 export default function FeedPage() {
   const [debates, setDebates] = useState<Debate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [topDebaters, setTopDebaters] = useState<TopDebater[]>([]);
+
+  useEffect(() => {
+    fetch("/api/trending").then((r) => r.json()).then(setTrendingTopics).catch(() => {});
+    fetch("/api/leaderboard").then((r) => r.json()).then(setTopDebaters).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -193,9 +202,13 @@ export default function FeedPage() {
                 <h3 className="font-semibold text-sm">Trending Topics</h3>
               </div>
               <div className="space-y-2">
+                {trendingTopics.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No topics yet.</p>
+                ) : null}
                 {trendingTopics.map((topic, i) => (
-                  <div
+                  <Link
                     key={topic.tag}
+                    href={`/explore`}
                     className="flex items-center justify-between py-1.5 cursor-pointer hover:text-indigo-400 transition-colors"
                   >
                     <div className="flex items-center gap-2">
@@ -207,7 +220,7 @@ export default function FeedPage() {
                     <span className="text-xs text-muted-foreground">
                       {topic.count}
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -220,7 +233,10 @@ export default function FeedPage() {
                 <span className="text-xs text-muted-foreground ml-1">this week</span>
               </div>
               <div className="space-y-3">
-                {topDebaters.map(({ rank, user, weeklyPoints }) => {
+                {topDebaters.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No debaters yet.</p>
+                ) : topDebaters.map((user, i) => {
+                  const rank = i + 1;
                   const level = getReputationLevel(user.reputationScore);
                   return (
                     <Link
@@ -228,18 +244,10 @@ export default function FeedPage() {
                       href={`/profile/${user.username}`}
                       className="flex items-center gap-3 group"
                     >
-                      <span
-                        className={cn(
-                          "text-xs font-bold w-5 text-center",
-                          rank === 1
-                            ? "text-amber-400"
-                            : rank === 2
-                            ? "text-slate-300"
-                            : rank === 3
-                            ? "text-orange-400"
-                            : "text-muted-foreground"
-                        )}
-                      >
+                      <span className={cn(
+                        "text-xs font-bold w-5 text-center",
+                        rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : rank === 3 ? "text-orange-400" : "text-muted-foreground"
+                      )}>
                         {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}
                       </span>
                       <Avatar className="w-7 h-7">
@@ -255,7 +263,7 @@ export default function FeedPage() {
                       </div>
                       <div className="flex items-center gap-0.5 text-orange-400">
                         <Flame className="w-3 h-3" />
-                        <span className="text-xs font-semibold">{weeklyPoints}</span>
+                        <span className="text-xs font-semibold">{user.reputationScore}</span>
                       </div>
                     </Link>
                   );
