@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import {
   MessageSquare,
   ThumbsUp,
@@ -81,7 +81,8 @@ export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
   const username = params.username as string;
-  const { user: clerkUser } = useUser();
+  const { data: session } = useSession();
+  const clerkUser = session?.user;
 
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -326,7 +327,7 @@ export default function ProfilePage() {
     username === "me" ||
     clerkUser?.username === username ||
     clerkUser?.username === user.username ||
-    clerkUser?.emailAddresses?.[0]?.emailAddress === user.email;
+    clerkUser?.email === user.email;
 
   return (
     <div className="max-w-150 mx-auto">
@@ -823,7 +824,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               filteredFollowList.map((u) => {
-                const isMe = clerkUser?.username === u.username || clerkUser?.emailAddresses?.[0]?.emailAddress === u.username;
+                const isMe = clerkUser?.username === u.username || clerkUser?.email === u.username;
                 const amFollowing = followingSet.has(u.id);
                 return (
                   <div key={u.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/3 transition-colors">

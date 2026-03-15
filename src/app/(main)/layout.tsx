@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useSession, signOut } from "next-auth/react";
 import {
   Home,
   Compass,
@@ -35,21 +35,19 @@ const navItems = [
 ];
 
 function UserMenuDropdown() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
   const [dbUsername, setDbUsername] = useState<string | null>(null);
-  const clerkUsername = user?.username ?? user?.firstName ?? "";
-  const username = dbUsername ?? clerkUsername;
-  const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
+  const username = dbUsername ?? session?.user?.username ?? session?.user?.name ?? "";
+  const initials = username ? username[0].toUpperCase() : "?";
 
   useEffect(() => {
-    if (!user) return;
+    if (!session?.user) return;
     fetch("/api/users/me")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.user?.username) setDbUsername(data.user.username); })
       .catch(() => {});
-  }, [user]);
+  }, [session?.user]);
 
   return (
     <DropdownMenu>
@@ -57,7 +55,7 @@ function UserMenuDropdown() {
         <button className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/6 transition-all duration-200 cursor-pointer w-full text-left outline-none">
           <div className="relative">
             <Avatar className="w-9 h-9 ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-200">
-              <AvatarImage src={user?.imageUrl} alt={username} />
+              <AvatarImage src={session?.user?.image ?? undefined} alt={username} />
               <AvatarFallback className="text-xs font-semibold bg-linear-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300">
                 {initials || "?"}
               </AvatarFallback>
@@ -69,7 +67,7 @@ function UserMenuDropdown() {
               @{username}
             </span>
             <span className="text-xs text-white/35 truncate">
-              {user?.primaryEmailAddress?.emailAddress}
+              {session?.user?.email}
             </span>
           </div>
           <ChevronUp className="hidden xl:block w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0" />
@@ -78,15 +76,15 @@ function UserMenuDropdown() {
       <DropdownMenuContent side="top" align="start" className="w-64 mb-2 p-1.5 rounded-xl border-white/10 bg-popover/95 backdrop-blur-xl shadow-xl shadow-black/30">
         <div className="flex items-center gap-3 px-2.5 py-3">
           <Avatar className="w-10 h-10 ring-2 ring-white/10">
-            <AvatarImage src={user?.imageUrl} alt={username} />
+            <AvatarImage src={session?.user?.image ?? undefined} alt={username} />
             <AvatarFallback className="text-sm font-semibold bg-linear-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300">
-              {initials || "?"}
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{user?.fullName}</p>
+            <p className="text-sm font-semibold text-foreground truncate">@{username}</p>
             <p className="text-xs text-muted-foreground truncate">
-              @{username}
+              {session?.user?.email}
             </p>
           </div>
         </div>
@@ -110,7 +108,7 @@ function UserMenuDropdown() {
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/6 my-1" />
         <DropdownMenuItem
-          onClick={() => signOut()}
+          onClick={() => signOut({ callbackUrl: "/sign-in" })}
           className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3 text-red-400 focus:text-red-400 focus:bg-red-500/10"
         >
           <LogOut className="w-4 h-4" />
@@ -182,11 +180,10 @@ function SidebarNav() {
 }
 
 function TopBar() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
-  const username = user?.username ?? user?.firstName ?? "";
-  const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
+  const username = session?.user?.username ?? session?.user?.name ?? "";
+  const initials = username ? username[0].toUpperCase() : "?";
 
   return (
     <header className="lg:hidden fixed top-0 left-0 right-0 z-40 h-13.25 bg-background/90 backdrop-blur-md flex items-center justify-between px-4">
@@ -203,9 +200,9 @@ function TopBar() {
             <button className="outline-none">
               <div className="relative">
                 <Avatar className="w-8 h-8 ring-2 ring-white/10">
-                  <AvatarImage src={user?.imageUrl} alt={username} />
+                  <AvatarImage src={session?.user?.image ?? undefined} alt={username} />
                   <AvatarFallback className="text-xs font-semibold bg-linear-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300">
-                    {initials || "?"}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
@@ -215,15 +212,15 @@ function TopBar() {
           <DropdownMenuContent side="bottom" align="end" className="w-64 mt-2 p-1.5 rounded-xl border-white/10 bg-popover/95 backdrop-blur-xl shadow-xl shadow-black/30">
             <div className="flex items-center gap-3 px-2.5 py-3">
               <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                <AvatarImage src={user?.imageUrl} alt={username} />
+                <AvatarImage src={session?.user?.image ?? undefined} alt={username} />
                 <AvatarFallback className="text-sm font-semibold bg-linear-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300">
-                  {initials || "?"}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{user?.fullName}</p>
+                <p className="text-sm font-semibold text-foreground truncate">@{username}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  @{username}
+                  {session?.user?.email}
                 </p>
               </div>
             </div>
@@ -247,7 +244,7 @@ function TopBar() {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/6 my-1" />
             <DropdownMenuItem
-              onClick={() => signOut()}
+              onClick={() => signOut({ callbackUrl: "/sign-in" })}
               className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3 text-red-400 focus:text-red-400 focus:bg-red-500/10"
             >
               <LogOut className="w-4 h-4" />

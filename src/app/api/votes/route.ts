@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { votes, arguments_, users, notifications } from "@/lib/db/schema";
 import { eq, sql, and } from "drizzle-orm";
@@ -7,8 +7,8 @@ import { nanoid } from "nanoid";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) {
+  const session = await auth();
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

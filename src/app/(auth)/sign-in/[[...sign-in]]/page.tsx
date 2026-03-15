@@ -1,41 +1,111 @@
-import { SignIn } from "@clerk/nextjs";
+"use client";
+
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import Link from "next/link";
 
 export default function SignInPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (result?.error) {
+        setError("Invalid email or password");
+      } else {
+        window.location.href = "/feed";
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="w-full flex justify-center">
-      <SignIn
-        appearance={{
-          elements: {
-            rootBox: "w-full",
-            card: "bg-transparent shadow-none border-none p-0 gap-6",
-            headerTitle: "text-foreground font-black text-2xl tracking-tight",
-            headerSubtitle: "text-muted-foreground/70 text-sm",
-            socialButtonsBlockButton:
-              "bg-white/[0.06] border-0 hover:bg-white/10 text-foreground rounded-full h-12 font-semibold text-sm transition-all duration-200",
-            socialButtonsBlockButtonText: "font-semibold text-sm",
-            socialButtonsProviderIcon: "w-5 h-5",
-            dividerLine: "bg-white/[0.06]",
-            dividerText: "text-muted-foreground/40 text-xs uppercase tracking-widest font-medium",
-            formFieldLabel: "text-muted-foreground text-xs font-semibold uppercase tracking-wider",
-            formFieldInput:
-              "bg-white/[0.06] border-0 text-foreground placeholder:text-muted-foreground/40 rounded-xl h-12 text-sm px-4 focus:bg-white/[0.08] focus:ring-2 focus:ring-indigo-500/30 transition-all duration-200",
-            formButtonPrimary:
-              "bg-linear-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white font-bold rounded-full h-12 text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
-            footerActionLink:
-              "text-indigo-400 hover:text-indigo-300 font-semibold transition-colors",
-            footerActionText: "text-muted-foreground/60 text-sm",
-            footer: "mt-2",
-            identityPreviewText: "text-foreground font-medium",
-            identityPreviewEditButtonIcon: "text-indigo-400",
-            formFieldAction: "text-indigo-400 hover:text-indigo-300 text-xs font-semibold",
-            alertText: "text-foreground text-sm",
-            formResendCodeLink: "text-indigo-400 hover:text-indigo-300 font-semibold",
-            otpCodeFieldInput:
-              "bg-white/[0.06] border-0 text-foreground rounded-xl h-12 text-lg font-bold focus:bg-white/[0.08] focus:ring-2 focus:ring-indigo-500/30",
-            backLink: "text-muted-foreground hover:text-foreground text-sm",
-          },
-        }}
-      />
+    <div className="w-full max-w-sm mx-auto">
+      <h1 className="text-2xl font-black text-white tracking-tight mb-1">Welcome back</h1>
+      <p className="text-sm text-white/40 mb-8">Sign in to continue to ArgueX</p>
+
+      {/* Google OAuth */}
+      <button
+        onClick={() => signIn("google", { callbackUrl: "/feed" })}
+        className="w-full flex items-center justify-center gap-3 h-12 rounded-full bg-white/6 hover:bg-white/10 text-white text-sm font-semibold transition-all"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+        </svg>
+        Continue with Google
+      </button>
+
+      {/* Divider */}
+      <div className="flex items-center gap-4 my-6">
+        <div className="flex-1 h-px bg-white/6" />
+        <span className="text-[11px] text-white/25 uppercase tracking-widest font-medium">or</span>
+        <div className="flex-1 h-px bg-white/6" />
+      </div>
+
+      {/* Credentials form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-[11px] text-white/40 uppercase tracking-wider font-semibold block mb-1.5">
+            Email address
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full h-12 bg-white/6 rounded-xl px-4 text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+            placeholder="you@example.com"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] text-white/40 uppercase tracking-wider font-semibold block mb-1.5">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full h-12 bg-white/6 rounded-xl px-4 text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+            placeholder="••••••••"
+          />
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full h-12 bg-linear-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white font-bold rounded-full text-sm shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50"
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+
+      <p className="text-sm text-white/40 text-center mt-6">
+        Don&apos;t have an account?{" "}
+        <Link href="/sign-up" className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

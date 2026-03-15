@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, X, Hash, ImagePlus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { uploadToCloudinary } from "@/lib/upload";
 
 export default function CreateDebatePage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { data: session } = useSession();
   const [title, setTitle] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashInput, setHashInput] = useState("");
@@ -25,7 +25,8 @@ export default function CreateDebatePage() {
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const username = user?.username ?? user?.firstName ?? "you";
+  const user = session?.user;
+  const username = user?.username ?? user?.name ?? "you";
 
   useEffect(() => {
     fetch("/api/categories")

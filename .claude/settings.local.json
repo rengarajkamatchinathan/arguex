@@ -24,7 +24,10 @@
       "Bash(set +a)",
       "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\follow\")",
       "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\followers\")",
-      "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\following\")"
+      "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\following\")",
+      "Bash(npm uninstall:*)",
+      "Bash(openssl rand:*)",
+      "Bash(node -e \":*)"
     ]
   }
 }

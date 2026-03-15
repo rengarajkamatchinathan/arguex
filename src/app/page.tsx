@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { debates } from "@/lib/db/schema";
@@ -6,8 +6,8 @@ import { desc } from "drizzle-orm";
 import Link from "next/link";
 
 export default async function HomePage() {
-  const { userId } = await auth();
-  if (userId) {
+  const session = await auth();
+  if (session?.user) {
     redirect("/feed");
   }
 

@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getReputationLevel } from "@/lib/constants";
 import { cn, timeAgo } from "@/lib/utils";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 
 interface DebateAuthor {
   id: string;
@@ -286,9 +286,9 @@ function DebateCardSkeleton() {
 
 /* ─── Composer Prompt ─── */
 function ComposerPrompt() {
-  const { user } = useUser();
-  const username = user?.username ?? user?.firstName ?? "you";
-  const avatarUrl = user?.imageUrl ?? null;
+  const { data: session } = useSession();
+  const username = session?.user?.username ?? session?.user?.name ?? "you";
+  const avatarUrl = session?.user?.image ?? null;
 
   return (
     <Link href="/debate/create">
