@@ -27,7 +27,9 @@
       "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\following\")",
       "Bash(npm uninstall:*)",
       "Bash(openssl rand:*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(npx tsx:*)",
+      "Bash(curl -sI \"https://i.pravatar.cc/200?u=priya_cs\")"
     ]
   }
 }

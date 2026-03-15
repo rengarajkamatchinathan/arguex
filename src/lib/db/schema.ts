@@ -22,7 +22,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
 export const users = pgTable("users", {
   id: text("id").primaryKey().notNull(),
   name: text("name"),
-  username: text("username").unique().notNull(),
+  username: text("username").unique().$defaultFn(() => `user_${crypto.randomUUID().slice(0, 8)}`).notNull(),
   email: text("email").unique().notNull(),
   passwordHash: text("password_hash"),
   emailVerified: timestamp("email_verified", { mode: "date" }),
