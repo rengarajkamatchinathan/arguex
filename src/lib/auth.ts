@@ -3,15 +3,15 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
-import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { users, accounts as accountsTable, sessions, verificationTokens } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
     usersTable: users,
-    accountsTable: accounts,
+    accountsTable: accountsTable,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
@@ -60,9 +60,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      // For Google OAuth: link to existing user by email if they exist
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google" && user.email) {
+        // Check if user already exists in DB
         const [existing] = await db
           .select()
           .from(users)
@@ -70,10 +70,83 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .limit(1);
 
         if (existing) {
-          // Update user's id to match existing DB user
+          // User exists — make sure accounts link exists
+          const [existingAccount] = await db
+            .select()
+            .from(accountsTable)
+            .where(
+              and(
+                eq(accountsTable.provider, "google"),
+                eq(accountsTable.providerAccountId, account.providerAccountId)
+              )
+            )
+            .limit(1);
+
+          if (!existingAccount) {
+            // Create the link
+            await db.insert(accountsTable).values({
+              userId: existing.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+              access_token: account.access_token ?? null,
+              refresh_token: account.refresh_token ?? null,
+              expires_at: account.expires_at ?? null,
+              token_type: account.token_type ?? null,
+              scope: account.scope ?? null,
+              id_token: account.id_token ?? null,
+              session_state: (account.session_state as string) ?? null,
+            });
+          }
+
+          // Update avatar from Google if not set
+          if (!existing.avatarUrl && profile?.picture) {
+            await db
+              .update(users)
+              .set({ avatarUrl: profile.picture as string })
+              .where(eq(users.id, existing.id));
+          }
+
+          // Set user.id so JWT callback gets the right ID
           user.id = existing.id;
           user.name = existing.username;
           user.image = existing.avatarUrl;
+          return true;
+        } else {
+          // New user — create with proper username
+          const emailPrefix = user.email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase();
+          const username = `${emailPrefix}_${nanoid(4)}`;
+          const id = nanoid();
+
+          await db.insert(users).values({
+            id,
+            username,
+            email: user.email,
+            name: (profile?.name as string) ?? null,
+            avatarUrl: (profile?.picture as string) ?? null,
+            image: (profile?.picture as string) ?? null,
+            reputationScore: 0,
+          });
+
+          // Create accounts link
+          await db.insert(accountsTable).values({
+            userId: id,
+            type: account.type,
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            access_token: account.access_token ?? null,
+            refresh_token: account.refresh_token ?? null,
+            expires_at: account.expires_at ?? null,
+            token_type: account.token_type ?? null,
+            scope: account.scope ?? null,
+            id_token: account.id_token ?? null,
+            session_state: (account.session_state as string) ?? null,
+          });
+
+          user.id = id;
+          user.name = username;
+          user.image = (profile?.picture as string) ?? null;
+          return true;
         }
       }
       return true;
@@ -105,18 +178,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.username = token.username;
       session.user.image = token.avatarUrl ?? null;
       return session;
-    },
-  },
-  events: {
-    async createUser({ user }) {
-      // When NextAuth creates a user via OAuth, ensure they have a username
-      if (user.id && !user.name) {
-        const username = `user_${nanoid(8)}`;
-        await db
-          .update(users)
-          .set({ username })
-          .where(eq(users.id, user.id));
-      }
     },
   },
 });
