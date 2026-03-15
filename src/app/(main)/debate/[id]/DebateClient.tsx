@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -41,6 +41,7 @@ interface Debate {
   description: string;
   category: string;
   tags: string[];
+  images: string[];
   authorId: string;
   participantCount: number;
   argCount: number;
@@ -186,6 +187,7 @@ function ReplyCard({ arg }: { arg: ReplyType }) {
     <div className="ml-10 pl-3 py-3 border-l border-white/8">
       <div className="flex items-center gap-1.5 mb-1.5">
         <Avatar className="w-5 h-5">
+          {arg.author.avatarUrl && <AvatarImage src={arg.author.avatarUrl} alt={arg.author.username} />}
           <AvatarFallback className="text-[9px] font-medium bg-white/6 text-white/30">
             {arg.author.username[0].toUpperCase()}
           </AvatarFallback>
@@ -275,6 +277,7 @@ function ArgumentCard({
       {/* Avatar */}
       <div className="shrink-0 pt-0.5">
         <Avatar className="w-7 h-7">
+          {arg.author.avatarUrl && <AvatarImage src={arg.author.avatarUrl} alt={arg.author.username} />}
           <AvatarFallback className="text-[11px] font-medium bg-white/6 text-white/35">
             {arg.author.username[0].toUpperCase()}
           </AvatarFallback>
@@ -522,6 +525,7 @@ export default function DebateClient({
         {/* Author row */}
         <div className="flex items-center gap-2 mb-4">
           <Avatar className="w-6 h-6 shrink-0">
+            {debate.author.avatarUrl && <AvatarImage src={debate.author.avatarUrl} alt={debate.author.username} />}
             <AvatarFallback className="text-[10px] font-medium bg-white/6 text-white/30">
               {debate.author.username[0].toUpperCase()}
             </AvatarFallback>
@@ -555,6 +559,29 @@ export default function DebateClient({
           <p className="text-[14px] text-white/50 leading-relaxed mb-3">
             {debate.description}
           </p>
+        )}
+
+        {/* Images */}
+        {debate.images && debate.images.length > 0 && (
+          <div className={cn(
+            "grid gap-0.5 rounded-xl overflow-hidden mb-4",
+            debate.images.length === 1 && "grid-cols-1",
+            debate.images.length === 2 && "grid-cols-2",
+            debate.images.length >= 3 && "grid-cols-2"
+          )}>
+            {debate.images.slice(0, 4).map((url, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "relative bg-white/5 cursor-pointer",
+                  debate.images.length === 1 ? "aspect-video" : "aspect-square",
+                  debate.images.length === 3 && i === 0 && "row-span-2 aspect-auto"
+                )}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Tags */}

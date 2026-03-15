@@ -11,7 +11,7 @@ import {
   X,
   Flame,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getReputationLevel } from "@/lib/constants";
 
@@ -242,6 +242,7 @@ export default function ExplorePage() {
                         <Link key={u.id} href={`/profile/${u.username}`}>
                           <article className="flex items-center gap-3 px-4 py-3.5 border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer group">
                             <Avatar className="w-10 h-10 shrink-0">
+                              {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.username} />}
                               <AvatarFallback className="font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
                                 {u.username[0].toUpperCase()}
                               </AvatarFallback>

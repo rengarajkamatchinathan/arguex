@@ -16,7 +16,15 @@
       "Bash(npm run:*)",
       "Bash(npx drizzle-kit:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_t10bakdrVgWD@ep-solitary-hill-akkj70hg-pooler.c-3.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx drizzle-kit push --config=drizzle.config.ts 2)",
-      "Bash(1:*)"
+      "Bash(1:*)",
+      "Bash(npx next:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(set -a)",
+      "Bash(source .env.local)",
+      "Bash(set +a)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\follow\")",
+      "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\followers\")",
+      "Bash(mkdir -p \"c:\\\\Users\\\\RengarajKamatchinath\\\\OneDrive - Synergech Technology Solutions\\\\Desktop\\\\Local Disk D\\\\Personal\\\\Proj\\\\arguex\\\\src\\\\app\\\\api\\\\users\\\\[username]\\\\following\")"
     ]
   }
 }

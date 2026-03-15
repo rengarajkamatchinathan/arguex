@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { debates, users } from "@/lib/db/schema";
-import { eq, ilike, desc, and, sql } from "drizzle-orm";
+import { debates, users, notifications, userFollows, follows } from "@/lib/db/schema";
+import { eq, ilike, desc, and, sql, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
 import { arguments_ } from "@/lib/db/schema";
@@ -11,6 +11,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const search = searchParams.get("search");
+  const following = searchParams.get("following") === "true";
+  const saved = searchParams.get("saved") === "true";
   const limit = parseInt(searchParams.get("limit") ?? "20");
   const offset = parseInt(searchParams.get("offset") ?? "0");
 
@@ -21,6 +23,35 @@ export async function GET(req: NextRequest) {
     }
     if (search) {
       conditions.push(ilike(debates.title, `%${search}%`));
+    }
+    if (following) {
+      const dbUser = await getOrCreateUser();
+      if (dbUser) {
+        // Get users I follow
+        const followedUserRows = await db
+          .select({ followingId: userFollows.followingId })
+          .from(userFollows)
+          .where(eq(userFollows.followerId, dbUser.id));
+        const followedUserIds = followedUserRows.map((r) => r.followingId);
+        if (followedUserIds.length === 0) {
+          return NextResponse.json({ debates: [], total: 0, hasMore: false });
+        }
+        conditions.push(inArray(debates.authorId, followedUserIds));
+      }
+    }
+    if (saved) {
+      const dbUser = await getOrCreateUser();
+      if (dbUser) {
+        const savedRows = await db
+          .select({ debateId: follows.followingDebateId })
+          .from(follows)
+          .where(eq(follows.followerId, dbUser.id));
+        const savedIds = savedRows.map((r) => r.debateId);
+        if (savedIds.length === 0) {
+          return NextResponse.json({ debates: [], total: 0, hasMore: false });
+        }
+        conditions.push(inArray(debates.id, savedIds));
+      }
     }
 
     const rows = await db
@@ -49,7 +80,49 @@ export async function GET(req: NextRequest) {
       author: r.author ?? { id: "", username: "unknown", avatarUrl: null, reputationScore: 0 },
       proArgCount: r.proArgCount ?? 0,
       conArgCount: r.conArgCount ?? 0,
+      followingArgued: [] as { username: string; avatarUrl: string | null }[],
     }));
+
+    // Find which followed users argued in these debates
+    let currentUser = null;
+    try { currentUser = await getOrCreateUser(); } catch { /* not logged in */ }
+    if (currentUser && result.length > 0) {
+      const followedUserRows = await db
+        .select({ followingId: userFollows.followingId })
+        .from(userFollows)
+        .where(eq(userFollows.followerId, currentUser.id));
+      const followedIds = followedUserRows.map((r) => r.followingId);
+
+      if (followedIds.length > 0) {
+        const debateIds = result.map((d) => d.id);
+        const arguedRows = await db
+          .select({
+            debateId: arguments_.debateId,
+            username: users.username,
+            avatarUrl: users.avatarUrl,
+            authorId: arguments_.authorId,
+          })
+          .from(arguments_)
+          .innerJoin(users, eq(arguments_.authorId, users.id))
+          .where(
+            and(
+              inArray(arguments_.debateId, debateIds),
+              inArray(arguments_.authorId, followedIds)
+            )
+          );
+
+        // Group by debate, dedupe by user
+        const byDebate = new Map<string, Map<string, { username: string; avatarUrl: string | null }>>();
+        for (const row of arguedRows) {
+          if (!byDebate.has(row.debateId)) byDebate.set(row.debateId, new Map());
+          byDebate.get(row.debateId)!.set(row.authorId, { username: row.username, avatarUrl: row.avatarUrl });
+        }
+        for (const debate of result) {
+          const userMap = byDebate.get(debate.id);
+          if (userMap) debate.followingArgued = Array.from(userMap.values());
+        }
+      }
+    }
 
     return NextResponse.json({ debates: result, total: result.length, hasMore: result.length === limit });
   } catch (error) {
@@ -65,7 +138,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, category, description, tags } = body;
+  const { title, category, description, tags, images } = body;
 
   if (!title || !category || !description) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -84,12 +157,18 @@ export async function POST(req: NextRequest) {
       description,
       category,
       tags: tags ?? [],
+      images: images ?? [],
       authorId: dbUser.id,
       participantCount: 1,
       argCount: 0,
       proVotes: 0,
       conVotes: 0,
     });
+
+    // Award reputation for creating a debate (+10)
+    await db.update(users)
+      .set({ reputationScore: sql`${users.reputationScore} + 10` })
+      .where(eq(users.id, dbUser.id));
 
     const newDebate = await db.select().from(debates).where(eq(debates.id, id)).limit(1);
     return NextResponse.json(newDebate[0], { status: 201 });

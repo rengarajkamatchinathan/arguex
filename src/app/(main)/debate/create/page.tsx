@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, X, Hash } from "lucide-react";
+import { ArrowLeft, X, Hash, ImagePlus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import { uploadToCloudinary } from "@/lib/upload";
 
 export default function CreateDebatePage() {
   const router = useRouter();
@@ -18,8 +19,11 @@ export default function CreateDebatePage() {
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"title" | "details">("title");
+  const [images, setImages] = useState<string[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const username = user?.username ?? user?.firstName ?? "you";
 
@@ -64,6 +68,29 @@ export default function CreateDebatePage() {
     }
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const remaining = 4 - images.length;
+    const toUpload = files.slice(0, remaining);
+    setImageUploading(true);
+    try {
+      const urls = await Promise.all(
+        toUpload.map((f) => uploadToCloudinary(f, "debates"))
+      );
+      setImages((prev) => [...prev, ...urls]);
+    } catch {
+      // silently fail individual uploads
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSubmit = async () => {
     if (!isValid || isSubmitting) return;
     setIsSubmitting(true);
@@ -76,6 +103,7 @@ export default function CreateDebatePage() {
           category: hashtags[0],
           description,
           tags: hashtags,
+          images,
         }),
       });
       if (res.ok) router.push("/feed");
@@ -175,6 +203,52 @@ export default function CreateDebatePage() {
                 rows={3}
                 className="w-full bg-transparent text-[15px] text-white/80 placeholder:text-white/25 outline-none resize-none leading-relaxed"
               />
+
+              {/* Image upload */}
+              <div>
+                {images.length > 0 && (
+                  <div className={cn(
+                    "grid gap-1.5 mb-3 rounded-xl overflow-hidden",
+                    images.length === 1 && "grid-cols-1",
+                    images.length === 2 && "grid-cols-2",
+                    images.length >= 3 && "grid-cols-2"
+                  )}>
+                    {images.map((url, i) => (
+                      <div key={i} className="relative group aspect-video bg-white/5">
+                        <img src={url} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3.5 h-3.5 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {images.length < 4 && (
+                  <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-white/10 hover:border-indigo-500/30 hover:bg-white/2 cursor-pointer transition-all">
+                    {imageUploading ? (
+                      <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4 text-white/30" />
+                    )}
+                    <span className="text-[13px] text-white/30">
+                      {imageUploading ? "Uploading..." : `Add images (${images.length}/4)`}
+                    </span>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={imageUploading}
+                    />
+                  </label>
+                )}
+              </div>
 
               {/* Hashtag input */}
               <div>

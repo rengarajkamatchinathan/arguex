@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { debates, arguments_, users } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 export async function GET(
   _req: NextRequest,
@@ -41,7 +41,7 @@ export async function GET(
       .from(arguments_)
       .leftJoin(users, eq(arguments_.authorId, users.id))
       .where(eq(arguments_.debateId, id))
-      .orderBy(asc(arguments_.createdAt));
+      .orderBy(desc(sql`${arguments_.upvotes} - ${arguments_.downvotes}`));
 
     const debate = {
       ...debateRows[0].debate,

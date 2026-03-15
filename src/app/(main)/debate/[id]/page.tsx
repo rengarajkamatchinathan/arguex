@@ -15,6 +15,7 @@ interface Debate {
   description: string;
   category: string;
   tags: string[];
+  images: string[];
   authorId: string;
   participantCount: number;
   argCount: number;

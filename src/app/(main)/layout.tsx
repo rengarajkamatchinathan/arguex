@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
@@ -37,8 +38,18 @@ function UserMenuDropdown() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const { theme, setTheme } = useTheme();
-  const username = user?.username ?? user?.firstName ?? "";
+  const [dbUsername, setDbUsername] = useState<string | null>(null);
+  const clerkUsername = user?.username ?? user?.firstName ?? "";
+  const username = dbUsername ?? clerkUsername;
   const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/users/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.user?.username) setDbUsername(data.user.username); })
+      .catch(() => {});
+  }, [user]);
 
   return (
     <DropdownMenu>
@@ -81,7 +92,7 @@ function UserMenuDropdown() {
         </div>
         <DropdownMenuSeparator className="bg-white/6 my-1" />
         <DropdownMenuItem asChild>
-          <Link href={`/profile/${username}`} className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3">
+          <Link href="/profile/me" className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3">
             <User className="w-4 h-4 text-muted-foreground" />
             <span>View Profile</span>
           </Link>
@@ -218,7 +229,7 @@ function TopBar() {
             </div>
             <DropdownMenuSeparator className="bg-white/6 my-1" />
             <DropdownMenuItem asChild>
-              <Link href={`/profile/${username}`} className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3">
+              <Link href="/profile/me" className="cursor-pointer rounded-lg px-2.5 py-2.5 gap-3">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span>View Profile</span>
               </Link>

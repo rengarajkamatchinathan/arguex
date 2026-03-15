@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { users, debates, arguments_ } from "@/lib/db/schema";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { users, debates, arguments_, userFollows } from "@/lib/db/schema";
+import { eq, desc, and, ne, sql, ilike } from "drizzle-orm";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
+import { computeBadges } from "@/lib/badges";
 
 export async function PATCH(
   req: NextRequest,
@@ -19,9 +20,10 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const updates: { bio?: string; avatarUrl?: string; username?: string } = {};
+  const updates: { bio?: string; avatarUrl?: string; bannerUrl?: string; username?: string } = {};
   if (typeof body.bio === "string") updates.bio = body.bio.trim();
   if (typeof body.avatarUrl === "string") updates.avatarUrl = body.avatarUrl.trim() || null as unknown as string;
+  if (typeof body.bannerUrl === "string") updates.bannerUrl = body.bannerUrl.trim() || null as unknown as string;
   if (typeof body.username === "string") {
     const newUsername = body.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
     if (newUsername.length < 3) {
@@ -68,7 +70,7 @@ export async function GET(
     userRows = await db
       .select()
       .from(users)
-      .where(eq(users.username, username))
+      .where(ilike(users.username, username))
       .limit(1);
   }
 
@@ -78,20 +80,44 @@ export async function GET(
 
   const user = userRows[0];
 
-  const [userDebates, userArgs] = await Promise.all([
+  // Get current user for isFollowing check
+  let currentUser = null;
+  try {
+    currentUser = await getOrCreateUser();
+  } catch {
+    // Not authenticated — that's fine
+  }
+
+  const [userDebates, userArgs, followersCountResult, followingCountResult, isFollowingResult] = await Promise.all([
     db.select().from(debates).where(eq(debates.authorId, user.id)).orderBy(desc(debates.createdAt)).limit(10),
     db.select().from(arguments_).where(eq(arguments_.authorId, user.id)).orderBy(desc(arguments_.createdAt)).limit(10),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(userFollows).where(eq(userFollows.followingId, user.id)),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(userFollows).where(eq(userFollows.followerId, user.id)),
+    currentUser
+      ? db.select().from(userFollows).where(and(eq(userFollows.followerId, currentUser.id), eq(userFollows.followingId, user.id))).limit(1)
+      : Promise.resolve([]),
   ]);
 
   const totalVotes = userArgs.reduce((acc, a) => acc + a.upvotes, 0);
 
+  const stats = {
+    debatesCreated: userDebates.length,
+    argumentsPosted: userArgs.length,
+    totalVotesReceived: totalVotes,
+    followersCount: followersCountResult[0]?.count ?? 0,
+    followingCount: followingCountResult[0]?.count ?? 0,
+  };
+
+  const badges = computeBadges({
+    ...stats,
+    reputationScore: user.reputationScore,
+  });
+
   return NextResponse.json({
     user,
-    stats: {
-      debatesCreated: userDebates.length,
-      argumentsPosted: userArgs.length,
-      totalVotesReceived: totalVotes,
-    },
+    stats,
+    badges,
+    isFollowing: isFollowingResult.length > 0,
     recentDebates: userDebates,
     recentArguments: userArgs,
   });

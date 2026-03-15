@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   email: text("email").unique().notNull(),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  bannerUrl: text("banner_url"),
   reputationScore: integer("reputation_score").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -34,6 +35,7 @@ export const debates = pgTable("debates", {
   description: text("description").notNull(),
   category: text("category").notNull(),
   tags: text("tags").array().default([]).notNull(),
+  images: text("images").array().default([]).notNull(),
   authorId: text("author_id")
     .references(() => users.id)
     .notNull(),
@@ -96,6 +98,17 @@ export const follows = pgTable("follows", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userFollows = pgTable("user_follows", {
+  id: text("id").primaryKey().notNull(),
+  followerId: text("follower_id")
+    .references(() => users.id)
+    .notNull(),
+  followingId: text("following_id")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Debate = typeof debates.$inferSelect;
@@ -105,3 +118,4 @@ export type NewArgument = typeof arguments_.$inferInsert;
 export type Vote = typeof votes.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Follow = typeof follows.$inferSelect;
+export type UserFollow = typeof userFollows.$inferSelect;

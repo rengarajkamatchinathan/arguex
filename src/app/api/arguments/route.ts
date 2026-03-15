@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { arguments_, debates, notifications } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { arguments_, debates, notifications, users } from "@/lib/db/schema";
+import { eq, sql, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getOrCreateUser } from "@/lib/get-or-create-user";
 
@@ -47,6 +47,25 @@ export async function POST(req: NextRequest) {
       .set({ argCount: sql`${debates.argCount} + 1` })
       .where(eq(debates.id, debateId));
 
+    // Increment participantCount if this is the user's first argument in this debate
+    const priorArgs = await db
+      .select({ id: arguments_.id })
+      .from(arguments_)
+      .where(and(eq(arguments_.debateId, debateId), eq(arguments_.authorId, dbUser.id)))
+      .limit(2);
+    if (priorArgs.length === 1) {
+      // Only the one we just inserted — first time participant
+      await db.update(debates)
+        .set({ participantCount: sql`${debates.participantCount} + 1` })
+        .where(eq(debates.id, debateId));
+    }
+
+    // Award reputation: +3 for argument, +2 for reply
+    const repGain = parentId ? 2 : 3;
+    await db.update(users)
+      .set({ reputationScore: sql`${users.reputationScore} + ${repGain}` })
+      .where(eq(users.id, dbUser.id));
+
     // If this is a reply, notify the parent argument's author
     if (parentId) {
       const parentRows = await db
@@ -63,6 +82,29 @@ export async function POST(req: NextRequest) {
           message: `@${dbUser.username} replied to your argument`,
           read: false,
         });
+      }
+    }
+
+    // Detect @mentions and notify mentioned users
+    const mentions = content.match(/@([a-z0-9_]+)/gi);
+    if (mentions) {
+      const mentionedUsernames = Array.from(new Set<string>(mentions.map((m: string) => m.slice(1).toLowerCase())));
+      for (const mentioned of mentionedUsernames) {
+        if (mentioned === dbUser.username) continue; // don't notify self
+        const mentionedRows = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.username, mentioned))
+          .limit(1);
+        if (mentionedRows[0]) {
+          await db.insert(notifications).values({
+            id: nanoid(),
+            userId: mentionedRows[0].id,
+            type: "MENTION",
+            message: `@${dbUser.username} mentioned you in an argument`,
+            read: false,
+          });
+        }
       }
     }
 
